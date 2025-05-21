@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Predicción de y con TensorFlow.js</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.15.0/dist/tf.min.js"></script>
+</head>
+<body>
+  <h1>Predicción de y = 2x² - 3x + 1 usando TensorFlow.js</h1>
+
+  <!-- Input para que el usuario ingrese un valor de x -->
+  <label for="inputX">Ingresa un valor de x:</label>
+  <input type="number" id="inputX" step="any">
+  <button onclick="predecir()">Predecir</button>
+
+  <!-- Área para mostrar resultados -->
+  <pre id="output">Esperando entrada del usuario...</pre>
+
+  <script>
+    let modeloEntrenado;
+
+    // Generamos los datos de entrenamiento
+    function generarDatos() {
+      const xs = []
+      const ys = []
+
+      for (let x = -10; x <= 10; x += 0.1) {
+        xs.push(x)
+        ys.push(2 * x * x - 3 * x + 1)  // y = 2x² - 3x + 1
+      }
+
+      return {
+        xs: tf.tensor2d(xs, [xs.length, 1]),
+        ys: tf.tensor2d(ys, [ys.length, 1])
+      }
+    }
+
+    // Entrenamos el modelo al cargar la página
+    async function entrenarModelo() {
+      const { xs, ys } = generarDatos()
+
+      const model = tf.sequential()
+      model.add(tf.layers.dense({ units: 16, activation: 'relu', inputShape: [1] }))
+      model.add(tf.layers.dense({ units: 16, activation: 'relu' }))
+      model.add(tf.layers.dense({ units: 1 }))
+
+      model.compile({
+        optimizer: tf.train.adam(),
+        loss: 'meanSquaredError'
+      })
+
+      // Entrenamiento
+      await model.fit(xs, ys, {
+        epochs: 100,
+        callbacks: {
+          onEpochEnd: (epoch, logs) => {
+            document.getElementById("output").textContent = `Entrenando modelo... Epoch: ${epoch + 1}, Pérdida: ${logs.loss.toFixed(5)}`
+          }
+        }
+      })
+
+      modeloEntrenado = model
+      document.getElementById("output").textContent = "Modelo entrenado. Ingresa un valor de x para predecir y."
+    }
+
+    // Función que se llama cuando el usuario hace clic en "Predecir"
+    async function predecir() {
+      if (!modeloEntrenado) {
+        alert("El modelo aún no se ha entrenado.")
+        return
+      }
+
+      const x = parseFloat(document.getElementById("inputX").value)
+
+      if (isNaN(x)) {
+        alert("Por favor, ingresa un número válido.")
+        return
+      }
+
+      // Convertimos el valor de entrada a tensor
+      const inputTensor = tf.tensor2d([x], [1, 1])
+      const prediccion = modeloEntrenado.predict(inputTensor)
+      const y = (await prediccion.array())[0][0]
+
+      // Mostramos el resultado
+      document.getElementById("output").textContent = `Para x = ${x}, el modelo predice y ≈ ${y.toFixed(3)}`
+    }
+
+    // Entrenamos automáticamente al cargar
+    entrenarModelo()
+  </script>
+</body>
+</html>
